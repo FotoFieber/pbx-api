@@ -34,6 +34,9 @@ pbx-api = "pbx_api.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+pbx_api = ["resources/*.service", "resources/*.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

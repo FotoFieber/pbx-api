@@ -43,6 +43,23 @@ TOPOLOGY_QUERIES: dict[str, str] = {
 # Tables of optional FreePBX modules; missing tables are treated as empty.
 OPTIONAL = {"ring_groups", "routes", "phonebook", "incoming"}
 
+# Tables the service reads, per database role ("config" / "cdr"); the read-only
+# database user needs SELECT on exactly these.
+READ_TABLES: dict[str, tuple[str, ...]] = {
+    "config": (
+        "users",
+        "devices",
+        "trunks",
+        "incoming",
+        "ringgroups",
+        "outbound_routes",
+        "outbound_route_trunks",
+        "contactmanager_group_entries",
+        "contactmanager_entry_numbers",
+    ),
+    "cdr": ("cdr",),
+}
+
 
 class CallStore(Protocol):
     async def load_topology_rows(self) -> dict[str, list[dict[str, Any]]]: ...

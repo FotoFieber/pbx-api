@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# Installed by "pbx-api setup"; @PLACEHOLDERS@ are filled in at install time.
 [Unit]
 Description=pbx-api - business REST API and MQTT bridge for FreePBX/Asterisk
 After=network-online.target mariadb.service
@@ -6,9 +7,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=pbx-api
-Group=pbx-api
-ExecStart=/opt/pbx-api/venv/bin/pbx-api --config /etc/pbx-api/config.yaml
+User=@USER@
+Group=@USER@
+ExecStart=@PBX_API_BIN@ run --config @CONFIG@
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5

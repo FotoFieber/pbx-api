@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import logging
 import signal
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -93,22 +94,47 @@ class Runtime:
             await self.db.stop()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(prog="pbx-api", description=__doc__)
-    parser.add_argument("--config", default="/etc/pbx-api/config.yaml")
-    parser.add_argument("--log-level", default="INFO")
-    args = parser.parse_args()
-    logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-
-    config = load_config(args.config)
-    runtime = Runtime(args.config, config)
+def serve(config_path: str) -> int:
+    config = load_config(config_path)
+    runtime = Runtime(config_path, config)
     tokens = config.server.tokens()
     if not tokens:
         log.warning("no bearer tokens configured: the API is unauthenticated")
     app = create_app(runtime.service, tokens=tokens, lifespan=runtime.lifespan)
     uvicorn.run(app, host=config.server.bind, port=config.server.port, log_config=None, access_log=False,
                 proxy_headers=False)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="pbx-api", description="Business REST API and MQTT bridge for FreePBX")
+    parser.add_argument("--log-level", default="INFO")
+    sub = parser.add_subparsers(dest="command")
+
+    p_run = sub.add_parser("run", help="run the service (default)")
+    p_run.add_argument("--config", default="/etc/pbx-api/config.yaml")
+
+    p_check = sub.add_parser("check", help="verify configuration and connectivity")
+    p_check.add_argument("--config", default="/etc/pbx-api/config.yaml")
+
+    from . import setup_cmd
+
+    p_setup = sub.add_parser("setup", help="prepare this PBX host (run as root)",
+                             description=setup_cmd.__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    setup_cmd.add_arguments(p_setup)
+
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=args.log_level.upper(), format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    if args.command == "setup":
+        return setup_cmd.main(args)
+    if args.command == "check":
+        from . import check_cmd
+
+        logging.getLogger().setLevel(logging.WARNING)
+        return check_cmd.main(load_config(args.config))
+    return serve(getattr(args, "config", "/etc/pbx-api/config.yaml"))
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

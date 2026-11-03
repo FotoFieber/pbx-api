@@ -44,42 +44,36 @@ MQTT topics and Home Assistant entities: [docs/mqtt.md](docs/mqtt.md).
 * Python 3.11+ on the PBX host
 * Optional: MQTT broker
 
-## FreePBX preparation
-
-Create a local, read-only database user (adjust the password):
-
-```sql
-CREATE USER 'pbx_api'@'localhost' IDENTIFIED BY '...';
-GRANT SELECT ON asteriskcdrdb.cdr TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.users TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.devices TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.trunks TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.incoming TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.ringgroups TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.outbound_routes TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.outbound_route_trunks TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.contactmanager_group_entries TO 'pbx_api'@'localhost';
-GRANT SELECT ON asterisk.contactmanager_entry_numbers TO 'pbx_api'@'localhost';
-```
-
-Create an AMI user in *Settings → Asterisk Manager Users*: permit `127.0.0.1/255.255.255.255`
-only, read `system,call,reporting`, write `reporting`. AMI authorizes actions by the
-*write* class; `reporting` only allows informational actions (`DeviceStateList`,
-`CoreShowChannels`), not originate, commands or configuration changes.
-
 ## Installation
 
+On the PBX host, as root:
+
 ```sh
-# on a development machine
-python -m venv .venv && .venv/bin/pip install -e '.[dev]'
-echo 'DEPLOY_RUN="ssh root@pbx.example.org bash -s"' > deploy.local.env
-PATH=.venv/bin:$PATH deploy/deploy.sh
+apt install python3-venv
+python3 -m venv /opt/pbx-api
+/opt/pbx-api/bin/pip install pbx-api        # or a wheel / source checkout
+/opt/pbx-api/bin/pbx-api setup              # add --mqtt-host <broker> to enable MQTT
+/opt/pbx-api/bin/pbx-api check
+systemctl start pbx-api
 ```
 
-`deploy/install.sh` creates the system user `pbx-api`, a virtualenv in
-`/opt/pbx-api`, `/etc/pbx-api/config.yaml` (from [`config.example.yaml`](config.example.yaml))
-and the systemd unit `pbx-api.service`. Put secrets into the files referenced by the
-config (mode 640, group `pbx-api`), then `systemctl start pbx-api`.
+`pbx-api setup` is idempotent and shows its plan with `--dry-run`. It
+
+* creates the system user `pbx-api` and `/etc/pbx-api/` (mode 750) with generated
+  secrets (`tokens`, `db.secret`, `ami.secret`; existing files are never overwritten)
+  and `config.yaml` (see [`config.example.yaml`](config.example.yaml) for all options),
+* creates the local database user `pbx_api@localhost` with `SELECT` on exactly the
+  tables the service reads (`--skip-db` to do it yourself),
+* creates the AMI user `pbx_api`: permit `127.0.0.1` only, read `system,call,reporting`,
+  write `reporting` – AMI authorizes actions by the *write* class, and `reporting`
+  allows only informational actions such as `DeviceStateList` and `CoreShowChannels`
+  (`--skip-ami`; on plain Asterisk it prints a `manager_custom.conf` snippet instead),
+* installs and enables `pbx-api.service` for the current virtualenv (`--skip-service`).
+
+For MQTT, put the broker password into `/etc/pbx-api/mqtt.secret` (group `pbx-api`,
+mode 640). Clients use a token from `/etc/pbx-api/tokens` as bearer token.
+
+Upgrade: `/opt/pbx-api/bin/pip install -U pbx-api && systemctl restart pbx-api`.
 `systemctl reload pbx-api` re-reads the overrides and the FreePBX configuration.
 
 ## Development

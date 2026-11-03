@@ -1,0 +1,36 @@
+# pbx-api configuration, created by "pbx-api setup".
+# Extensions, lines, numbers, ring groups and the phone book are discovered from
+# FreePBX; this file only holds connection settings and optional display overrides.
+# Reference with all options: config.example.yaml in the source distribution.
+
+server:
+  bind: "@BIND@"
+  port: @PORT@
+  tokens_file: "@ETC@/tokens"
+
+freepbx:
+  db:
+    unix_socket: "@DB_SOCKET@"
+    user: "@DB_USER@"
+    password_file: "@ETC@/db.secret"
+
+ami:
+  enabled: @AMI_ENABLED@
+  host: 127.0.0.1
+  port: 5038
+  user: "@AMI_USER@"
+  secret_file: "@ETC@/ami.secret"
+
+mqtt:
+  enabled: @MQTT_ENABLED@
+  host: "@MQTT_HOST@"
+  port: @MQTT_PORT@
+  user: "@MQTT_USER@"
+  password_file: "@ETC@/mqtt.secret"
+  base_topic: pbx
+  discovery_prefix: homeassistant
+  node_id: pbx
+  device_name: PBX
+
+overrides:
+  default_line_label: number
