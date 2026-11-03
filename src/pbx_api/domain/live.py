@@ -208,7 +208,9 @@ class LiveModel:
                 name=topo.lookup_name(callee_num) or first.connected_name or None,
                 extension_id=callee_num if callee_num in topo.extensions else None,
             )
-        state = "connected" if connected or trunk_up else "ringing"
+        # once connected, a call stays connected while its legs hang up one by one
+        was_connected = self._call_states.get(linkedid) == "connected"
+        state = "connected" if connected or trunk_up or was_connected else "ringing"
         return ActiveCall(
             id=linkedid,
             started_at=first.created,

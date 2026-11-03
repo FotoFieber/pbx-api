@@ -65,6 +65,19 @@ def test_inbound_call_lifecycle():
     assert m.active_calls() == []
 
 
+def test_connected_call_does_not_ring_again_during_hangup():
+    # callee hangs up first: the remaining caller leg must not look like a new ringing call
+    m = model()
+    m.handle(chan("Newchannel", "4.1", "PJSIP/201-00000020", "4.1", "Ring", CallerIDNum="201", Exten="202"))
+    m.handle(chan("Newchannel", "4.2", "PJSIP/202-00000021", "4.1", "Ringing"))
+    assert m.handle(chan("Newstate", "4.2", "PJSIP/202-00000021", "4.1", "Up"))[0].detail == "connected"
+    m.handle(chan("Newstate", "4.1", "PJSIP/201-00000020", "4.1", "Up"))
+    changes = m.handle({"Event": "Hangup", "Uniqueid": "4.2"})
+    assert all(c.detail is None for c in changes)  # no state transition event
+    assert m.active_call("4.1").state == "connected"
+    assert m.handle({"Event": "Hangup", "Uniqueid": "4.1"})[0].kind == "call_ended"
+
+
 def test_outbound_and_internal():
     m = model()
     m.handle(chan("Newchannel", "2.1", "PJSIP/202-00000004", "2.1", "Ring", CallerIDNum="202", Exten="15550188"))
