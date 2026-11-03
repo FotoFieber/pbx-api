@@ -138,8 +138,15 @@ systemctl restart pbx-api
 .venv/bin/pytest                      # unit, API and contract tests
 .venv/bin/python scripts/export_openapi.py   # regenerate the contract after API changes
 PATH=.venv/bin:$PATH scripts/check_licenses.sh  # dependency license allowlist
-git config core.hooksPath .githooks   # leak check on commit/push
+git config core.hooksPath .githooks   # leak and docs check on commit, leak check on push
 ```
+
+The architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md) (arc42).
+Documentation is updated together with the code: the pre-commit hook rejects a
+commit that changes `src/`, `scripts/`, `.githooks/`, `pyproject.toml` or
+`config.example.yaml` without staging `ARCHITECTURE.md`, `README.md`, `docs/` or
+`openapi.yaml`. For a change without documentation impact, confirm with
+`PBX_API_DOCS_CHECKED=1 git commit …`.
 
 Test data is synthetic. The pre-commit hook rejects secrets and anything matching a
 personal denylist kept outside the repository (`~/.config/pbx-api/denylist`, one
