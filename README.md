@@ -63,14 +63,16 @@ GRANT SELECT ON asterisk.contactmanager_entry_numbers TO 'pbx_api'@'localhost';
 ```
 
 Create an AMI user in *Settings → Asterisk Manager Users*: permit `127.0.0.1/255.255.255.255`
-only, read `system,call,reporting`, no write permissions.
+only, read `system,call,reporting`, write `reporting`. AMI authorizes actions by the
+*write* class; `reporting` only allows informational actions (`DeviceStateList`,
+`CoreShowChannels`), not originate, commands or configuration changes.
 
 ## Installation
 
 ```sh
 # on a development machine
 python -m venv .venv && .venv/bin/pip install -e '.[dev]'
-echo 'DEPLOY_RUN="ssh root@pbx.example.org"' > deploy.local.env
+echo 'DEPLOY_RUN="ssh root@pbx.example.org bash -s"' > deploy.local.env
 PATH=.venv/bin:$PATH deploy/deploy.sh
 ```
 

@@ -100,8 +100,13 @@ class AmiLive:
         try:
             self.model.reset()
             for action in ("DeviceStateList", "CoreShowChannels"):
-                response = await manager.send_action({"Action": action}, as_list=True)
-                for msg in response if isinstance(response, list) else [response]:
+                # without the timeout a single error response (e.g. permission denied)
+                # would leave the list future pending forever
+                response = await asyncio.wait_for(manager.send_action({"Action": action}, as_list=True), 15)
+                messages = response if isinstance(response, list) else [response]
+                if messages and messages[0].get("Response") == "Error":
+                    raise RuntimeError(f"AMI action {action} failed: {messages[0].get('Message')}")
+                for msg in messages:
                     self.model.handle(msg)
             self.model.connected = True
             log.info(
