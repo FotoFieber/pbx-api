@@ -76,9 +76,11 @@ firewall (e.g. the FreePBX firewall) can add a third layer in front.
 
 ## Installation
 
-pbx-api is not published on PyPI; it is installed from this Git repository. In the
-commands below, `<repo-url>` is the clone URL of this repository and `v0.1.2` a release
-tag (see the tags / releases page of the repository).
+pbx-api is not published on PyPI; it is installed from its Git repository
+<https://github.com/FotoFieber/pbx-api>. `@latest` in the commands below installs the
+newest release: the branch `latest` follows every release tag. To pin a version, use
+a release tag instead, e.g. `@v0.1.2` (see the
+[tags](https://github.com/FotoFieber/pbx-api/tags) of the repository).
 
 On the PBX host, as root:
 
@@ -86,8 +88,8 @@ On the PBX host, as root:
 apt install python3-venv git                 # git is preinstalled on FreePBX 17
 python3 -m venv /opt/pbx-api
 
-# pip clones the repository at the given tag and installs it into the virtualenv
-/opt/pbx-api/bin/pip install "git+<repo-url>@v0.1.2"
+# pip clones the repository at the given branch or tag and installs it into the virtualenv
+/opt/pbx-api/bin/pip install "git+https://github.com/FotoFieber/pbx-api.git@latest"
 
 /opt/pbx-api/bin/pbx-api setup --allow-from 192.0.2.10 --allow-from 198.51.100.0/24
                                              # add --mqtt-host <broker> to enable MQTT
@@ -99,7 +101,7 @@ Alternatively check out the source yourself, e.g. to review it first or without
 network access from the PBX host to the repository:
 
 ```sh
-git clone --branch v0.1.2 <repo-url> /usr/local/src/pbx-api
+git clone --branch latest https://github.com/FotoFieber/pbx-api.git /usr/local/src/pbx-api
 /opt/pbx-api/bin/pip install /usr/local/src/pbx-api
 ```
 
@@ -122,10 +124,11 @@ from PyPI during installation.
 For MQTT, put the broker password into `/etc/pbx-api/mqtt.secret` (group `pbx-api`,
 mode 640). Clients use a token from `/etc/pbx-api/tokens` as bearer token.
 
-Upgrade to a newer tag (or `git pull` in your checkout and install it again):
+Upgrade to the newest release (or to a specific tag such as `@v0.2.0`; with your own
+checkout: `git pull` and install it again):
 
 ```sh
-/opt/pbx-api/bin/pip install "git+<repo-url>@v0.2.0"
+/opt/pbx-api/bin/pip install --upgrade "git+https://github.com/FotoFieber/pbx-api.git@latest"
 /opt/pbx-api/bin/pbx-api setup                # idempotent; picks up new unit/grants
 systemctl restart pbx-api
 ```
@@ -143,7 +146,7 @@ git config core.hooksPath .githooks   # leak and docs check on commit, leak chec
 
 The architecture is documented in [ARCHITECTURE.md](ARCHITECTURE.md) (arc42).
 Documentation is updated together with the code: the pre-commit hook rejects a
-commit that changes `src/`, `scripts/`, `.githooks/`, `pyproject.toml` or
+commit that changes `src/`, `scripts/`, `.githooks/`, `.github/`, `pyproject.toml` or
 `config.example.yaml` without staging `ARCHITECTURE.md`, `README.md`, `docs/` or
 `openapi.yaml`. For a change without documentation impact, confirm with
 `PBX_API_DOCS_CHECKED=1 git commit …`.
@@ -153,6 +156,18 @@ personal denylist kept outside the repository (`~/.config/pbx-api/denylist`, one
 regex per line) – use it for your own IP ranges, numbers and names.
 [gitleaks](https://github.com/gitleaks/gitleaks) is used when installed (8.16 from the
 Ubuntu archive or a current release).
+
+## Releases
+
+Tag the release commit and push the tag to GitHub:
+
+```sh
+git tag v0.2.0 && git push github main v0.2.0
+```
+
+The workflow [`.github/workflows/latest.yml`](.github/workflows/latest.yml) then
+fast-forwards the branch `latest` to the tag (never backwards), so `@latest`
+installs it. Bump `version` in `pyproject.toml` before tagging.
 
 ## License
 

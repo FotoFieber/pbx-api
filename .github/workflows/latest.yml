@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+# Move the branch "latest" to every newly pushed release tag v*, so that
+#   pip install "git+https://github.com/FotoFieber/pbx-api.git@latest"
+# installs the newest release. Only fast-forwards: an older tag pushed later
+# does not move "latest" back.
+name: latest
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fast-forward branch latest to ${{ github.ref_name }}
+        run: |
+          if git rev-parse -q --verify refs/remotes/origin/latest >/dev/null &&
+             ! git merge-base --is-ancestor refs/remotes/origin/latest "$GITHUB_SHA"; then
+            echo "latest is not an ancestor of ${GITHUB_REF_NAME}; not moving it"
+            exit 0
+          fi
+          git push origin "$GITHUB_SHA:refs/heads/latest"

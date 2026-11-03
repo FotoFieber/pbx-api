@@ -10,7 +10,7 @@ set -euo pipefail
 [ "${PBX_API_DOCS_CHECKED:-}" = "1" ] && exit 0
 
 staged=$(git diff --cached --name-only --diff-filter=ACMRD)
-code=$(grep -E '^(src/|scripts/|\.githooks/|pyproject\.toml$|config\.example\.yaml$)' <<< "$staged" || true)
+code=$(grep -E '^(src/|scripts/|\.githooks/|\.github/|pyproject\.toml$|config\.example\.yaml$)' <<< "$staged" || true)
 docs=$(grep -E '^(ARCHITECTURE\.md|README\.md|docs/|openapi\.yaml)' <<< "$staged" || true)
 
 if [ -n "$code" ] && [ -z "$docs" ]; then
