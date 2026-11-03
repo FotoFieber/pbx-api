@@ -1,0 +1,58 @@
+# Example configuration for pbx-api. Copy to /etc/pbx-api/config.yaml and adapt.
+# Everything about the phone system itself (extensions, lines, numbers, ring groups,
+# phone book) is discovered from FreePBX at runtime; this file only holds connection
+# settings and optional display overrides. Secrets live in separate files (mode 600).
+
+server:
+  bind: 0.0.0.0
+  port: 8930
+  tokens_file: /etc/pbx-api/tokens        # one bearer token per line
+  public_health: true
+
+freepbx:
+  db:
+    unix_socket: /run/mysqld/mysqld.sock   # local access only
+    user: pbx_api
+    password_file: /etc/pbx-api/db.secret
+    config_database: asterisk
+    cdr_database: asteriskcdrdb
+  # timezone: Europe/Berlin               # default: system time zone
+
+ami:
+  enabled: true
+  host: 127.0.0.1
+  port: 5038
+  user: pbx_api
+  secret_file: /etc/pbx-api/ami.secret
+
+mqtt:
+  enabled: true
+  host: 192.0.2.10                         # MQTT broker
+  port: 1883
+  user: pbx-api
+  password_file: /etc/pbx-api/mqtt.secret
+  tls: false
+  base_topic: pbx
+  discovery_prefix: homeassistant
+  node_id: pbx
+  device_name: PBX
+  recent_limit: 20
+
+discovery:
+  refresh_sec: 300                         # re-read FreePBX configuration; also on SIGHUP
+  phonebook_match_digits: 9                # compare the last N digits when looking up names
+
+calls:
+  dedup_window_sec: 2                      # merge parallel legs some gateways create
+  max_page_size: 200
+
+overrides:
+  default_line_label: number               # "name" (trunk name) or "number" (outbound CID)
+  lines:
+    example-trunk:
+      label: "Main line"
+  extensions:
+    "100":
+      name: "Reception"
+  hide_lines: []
+  hide_extensions: []

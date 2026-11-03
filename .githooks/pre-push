@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Scan the full tree being pushed, then hand over to a globally configured hook.
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+input=$(cat)
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  [ -z "${local_sha:-}" ] && continue
+  [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+  "$root/scripts/leak-check.sh" --tree "$local_sha"
+done <<< "$input"
+
+global=$(git config --global core.hooksPath || true)
+global=${global/#\~/$HOME}
+if [ -n "$global" ] && [ -x "$global/pre-push" ] && [ "$(cd "$global" && pwd)" != "$root/.githooks" ]; then
+  printf '%s\n' "$input" | "$global/pre-push" "$@"
+fi

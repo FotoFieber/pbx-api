@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Hand over to a globally configured commit-msg hook, if any (core.hooksPath in the
+# global git config is shadowed by this repository's .githooks).
+set -euo pipefail
+root=$(git rev-parse --show-toplevel)
+global=$(git config --global core.hooksPath || true)
+global=${global/#\~/$HOME}
+if [ -n "$global" ] && [ -x "$global/commit-msg" ] && [ "$(cd "$global" && pwd)" != "$root/.githooks" ]; then
+  exec "$global/commit-msg" "$@"
+fi

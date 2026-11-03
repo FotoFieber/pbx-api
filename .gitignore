@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+
+# Instance-specific configuration and secrets never belong in this repository
+config.yaml
+*.local.yaml
+*.local.env
+deploy.local.env
+secrets/
+*.secret
+*.token
+
+# Local data used for parity checks against a real installation
+local/

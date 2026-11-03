@@ -1,0 +1,14 @@
+pbx-api
+Copyright 2026 The pbx-api authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+pbx-api is an independent project. It talks to Asterisk via the Asterisk
+Manager Interface (AMI) network protocol and reads FreePBX/Asterisk database
+tables; it contains no code from FreePBX or Asterisk.
+
+FreePBX and Asterisk are trademarks of Sangoma Technologies. Home Assistant is a
+trademark of the Open Home Foundation. These names are used only to describe
+compatibility; this project is not affiliated with or endorsed by them.
+
+Third-party dependencies and their licenses are listed in THIRD_PARTY_LICENSES.
