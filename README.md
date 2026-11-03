@@ -46,16 +46,34 @@ MQTT topics and Home Assistant entities: [docs/mqtt.md](docs/mqtt.md).
 
 ## Installation
 
+pbx-api is not published on PyPI; it is installed from this Git repository. In the
+commands below, `<repo-url>` is the clone URL of this repository and `v0.1.1` a release
+tag (see the tags / releases page of the repository).
+
 On the PBX host, as root:
 
 ```sh
-apt install python3-venv
+apt install python3-venv git                 # git is preinstalled on FreePBX 17
 python3 -m venv /opt/pbx-api
-/opt/pbx-api/bin/pip install pbx-api        # or a wheel / source checkout
-/opt/pbx-api/bin/pbx-api setup              # add --mqtt-host <broker> to enable MQTT
+
+# pip clones the repository at the given tag and installs it into the virtualenv
+/opt/pbx-api/bin/pip install "git+<repo-url>@v0.1.1"
+
+/opt/pbx-api/bin/pbx-api setup               # add --mqtt-host <broker> to enable MQTT
 /opt/pbx-api/bin/pbx-api check
 systemctl start pbx-api
 ```
+
+Alternatively check out the source yourself, e.g. to review it first or without
+network access from the PBX host to the repository:
+
+```sh
+git clone --branch v0.1.1 <repo-url> /usr/local/src/pbx-api
+/opt/pbx-api/bin/pip install /usr/local/src/pbx-api
+```
+
+The runtime dependencies (FastAPI, aiomysql, panoramisk, aiomqtt, …) are downloaded
+from PyPI during installation.
 
 `pbx-api setup` is idempotent and shows its plan with `--dry-run`. It
 
@@ -73,7 +91,14 @@ systemctl start pbx-api
 For MQTT, put the broker password into `/etc/pbx-api/mqtt.secret` (group `pbx-api`,
 mode 640). Clients use a token from `/etc/pbx-api/tokens` as bearer token.
 
-Upgrade: `/opt/pbx-api/bin/pip install -U pbx-api && systemctl restart pbx-api`.
+Upgrade to a newer tag (or `git pull` in your checkout and install it again):
+
+```sh
+/opt/pbx-api/bin/pip install "git+<repo-url>@v0.2.0"
+/opt/pbx-api/bin/pbx-api setup                # idempotent; picks up new unit/grants
+systemctl restart pbx-api
+```
+
 `systemctl reload pbx-api` re-reads the overrides and the FreePBX configuration.
 
 ## Development
