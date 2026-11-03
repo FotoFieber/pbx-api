@@ -12,6 +12,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import uvicorn
+import yaml
+from pydantic import ValidationError
 from fastapi import FastAPI
 
 from .adapters.ami import AmiLive
@@ -78,6 +80,11 @@ class Runtime:
             self._reload.clear()
             try:
                 await self.refresh(reload_config)
+            except (ValidationError, OSError, yaml.YAMLError) as exc:
+                if not reload_config:
+                    log.exception("topology refresh failed")
+                    continue
+                log.error("configuration %s is invalid, keeping the running settings:\n%s", self.config_path, exc)
             except Exception:  # noqa: BLE001
                 log.exception("topology refresh failed")
 
