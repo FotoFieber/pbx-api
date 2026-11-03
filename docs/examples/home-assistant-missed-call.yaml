@@ -1,0 +1,28 @@
+# Example Home Assistant automation: notify about missed inbound calls.
+#
+# Use: Settings -> Automations & scenes -> Create automation -> three dots ->
+# Edit in YAML, paste, adjust the notify action, save.
+# Entity IDs assume mqtt.device_name "PBX" (see home-assistant.md).
+
+alias: "Phone: notify about missed calls"
+description: "pbx-api publishes event_type 'missed' when an inbound call was not answered."
+mode: queued
+triggers:
+  - trigger: state
+    entity_id: event.pbx_call
+conditions:
+  - condition: state
+    entity_id: event.pbx_call
+    attribute: event_type
+    state: missed
+actions:
+  - variables:
+      call: "{{ trigger.to_state.attributes.get('call', {}) }}"
+      caller: "{{ call.get('caller', {}).get('name') or call.get('caller', {}).get('number') or 'unknown number' }}"
+      line: "{{ call.get('line', {}).get('label', '') }}"
+  - action: notify.notify   # replace with e.g. notify.mobile_app_<your_phone>
+    data:
+      title: Missed call
+      message: >-
+        {{ caller }}{{ ' on ' ~ line if line }} at
+        {{ as_timestamp(call.get('startedAt')) | timestamp_custom('%H:%M') }}

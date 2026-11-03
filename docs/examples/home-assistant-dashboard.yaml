@@ -1,0 +1,138 @@
+# Example Home Assistant dashboard for pbx-api.
+#
+# Use: Settings -> Dashboards -> Add dashboard -> "New dashboard from scratch",
+# open it, three dots -> Edit dashboard -> three dots -> Raw configuration editor,
+# paste this file and save.
+#
+# Entity IDs assume the default MQTT settings (mqtt.device_name: PBX), which gives
+# entities like sensor.pbx_recent_calls. With another device name, replace "pbx_"
+# by your prefix (e.g. "freepbx_" for device_name FreePBX), also inside the
+# 'sensor\.pbx_' / 'binary_sensor\.pbx_' patterns.
+#
+# The cards discover extensions and lines from the entities, so new extensions or
+# lines appear without editing the dashboard. Optional fields are read with .get():
+# pbx-api omits empty fields, and Home Assistant renders markdown cards in strict
+# mode, where a missing attribute would blank the whole card.
+
+views:
+  - title: Phone
+    path: phone
+    type: sections
+    max_columns: 3
+    sections:
+      # ---- live status of all extensions + calls in progress --------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Live
+            icon: mdi:phone-ring
+            badges:
+              - type: entity
+                entity: sensor.pbx_active_calls
+                show_state: true
+                show_icon: true
+          - type: markdown
+            content: |-
+              {%- set label = {'idle': 'idle', 'ringing': 'ringing', 'in_call': 'in call', 'on_hold': 'on hold', 'busy': 'busy', 'unavailable': 'unavailable', 'unknown': 'unknown'} -%}
+              {%- set icon = {'idle': 'mdi:phone-classic', 'ringing': 'mdi:phone-ring', 'in_call': 'mdi:phone-in-talk', 'on_hold': 'mdi:phone-paused', 'busy': 'mdi:phone-lock', 'unavailable': 'mdi:phone-off'} -%}
+              {%- set col = {'idle': '#43a047', 'ringing': '#ef6c00', 'in_call': '#1e88e5', 'on_hold': '#8e24aa', 'busy': '#db4437', 'unavailable': '#8e8e8e'} -%}
+              | | Extension | Status |
+              |:-:|:--|:--|
+              {% for e in states.sensor | selectattr('entity_id', 'match', 'sensor\.pbx_') | selectattr('attributes.technology', 'defined') | sort(attribute='attributes.id') -%}
+              {%- set s = e.state -%}
+              | <font color="{{ col.get(s, '#8e8e8e') }}"><ha-icon icon="{{ icon.get(s, 'mdi:phone') }}"></ha-icon></font> | {{ e.attributes.name }} ({{ e.attributes.id }}) | {{ label.get(s, s) }} |
+              {% endfor %}
+          - type: markdown
+            visibility:
+              - condition: numeric_state
+                entity: sensor.pbx_active_calls
+                above: 0
+            content: |-
+              ### <ha-icon icon="mdi:phone-in-talk"></ha-icon> Active calls
+              {%- set ns = namespace(names={}) -%}
+              {%- for e in states.sensor | selectattr('entity_id', 'match', 'sensor\.pbx_') | selectattr('attributes.technology', 'defined') %}{% set ns.names = dict(ns.names, **{e.attributes.id: e.attributes.name}) %}{% endfor -%}
+              {%- for c in state_attr('sensor.pbx_active_calls', 'calls') or [] %}
+              {%- set r = namespace(l=[]) -%}{%- for x in c.get('ringingExtensions', []) %}{% set r.l = r.l + [ns.names.get(x, x)] %}{% endfor %}
+
+              **{{ c.get('caller', {}).get('name') or c.get('caller', {}).get('number') or '?' }}** → **{{ c.get('callee', {}).get('name') or c.get('callee', {}).get('number') or '?' }}**{% if c.get('line') %} via {{ c.line.get('label', '') }}{% endif %}<br>
+              {{ 'ringing at ' ~ (r.l | join(', ')) if c.state == 'ringing' else 'connected' }} · since {{ as_timestamp(c.startedAt) | timestamp_custom('%H:%M:%S') }}
+              {%- endfor %}
+
+      # ---- today's counters and the last call event ------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Today
+            icon: mdi:calendar-today
+          - type: tile
+            entity: sensor.pbx_calls_today
+            name: Calls today
+            icon: mdi:phone-log
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: sensor.pbx_missed_calls_today
+            name: Missed today
+            icon: mdi:phone-missed
+            color: red
+            grid_options:
+              columns: 6
+          - type: tile
+            entity: event.pbx_call
+            name: Last event
+            grid_options:
+              columns: 12
+
+      # ---- registration of extensions and lines ----------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Status
+            icon: mdi:lan-connect
+            heading_style: subtitle
+          - type: markdown
+            content: |-
+              {%- set ok = '<font color="#43a047"><ha-icon icon="mdi:check-circle"></ha-icon></font>' -%}
+              {%- set bad = '<font color="#db4437"><ha-icon icon="mdi:close-circle"></ha-icon></font>' -%}
+              {%- set online = not is_state('sensor.pbx_recent_calls', 'unavailable') -%}
+              | | Device / line | |
+              |:-:|:--|:--|
+              | {{ ok if online else bad }} | pbx-api | {{ 'online' if online else 'offline' }} |
+              {% for e in states.binary_sensor | selectattr('entity_id', 'match', 'binary_sensor\.pbx_') | sort(attribute='name') -%}
+              | {{ ok if e.state == 'on' else bad }} | {{ e.name | regex_replace('^\S+ ', '') | replace(' registered', '') }} | {{ 'registered' if e.state == 'on' else 'not registered' }} |
+              {% endfor %}
+
+      # ---- call list -------------------------------------------------------------
+      - type: grid
+        column_span: 3
+        cards:
+          - type: heading
+            heading: Calls
+            icon: mdi:phone-log
+          - type: markdown
+            grid_options:
+              columns: full
+            content: |-
+              {%- set ns = namespace(names={}) -%}
+              {%- for e in states.sensor | selectattr('entity_id', 'match', 'sensor\.pbx_') | selectattr('attributes.technology', 'defined') %}{% set ns.names = dict(ns.names, **{e.attributes.id: e.attributes.name}) %}{% endfor -%}
+              {%- set calls = state_attr('sensor.pbx_recent_calls', 'calls') or [] -%}
+              {%- set icons = {'inbound': 'mdi:phone-incoming', 'outbound': 'mdi:phone-outgoing', 'internal': 'mdi:phone-in-talk'} -%}
+              {%- set colors = {'inbound': '#43a047', 'outbound': '#1e88e5', 'internal': '#8e8e8e'} -%}
+              {%- set result = {'missed': 'missed', 'no_answer': 'no answer', 'busy': 'busy', 'failed': 'failed'} -%}
+              <font color="#43a047"><ha-icon icon="mdi:phone-incoming"></ha-icon></font> inbound &nbsp; <font color="#1e88e5"><ha-icon icon="mdi:phone-outgoing"></ha-icon></font> outbound &nbsp; <font color="#8e8e8e"><ha-icon icon="mdi:phone-in-talk"></ha-icon></font> internal &nbsp; <font color="#db4437"><ha-icon icon="mdi:phone-missed"></ha-icon></font> missed &nbsp; <font color="#ef6c00">●</font> not reached
+
+              | | Time | From | To | Line | Duration |
+              |:-:|:--|:--|:--|:--|--:|
+              {% for c in calls -%}
+              {%- set ok = c.outcome == 'answered' -%}
+              {%- set caller = c.get('caller', {}) -%}{%- set callee = c.get('callee', {}) -%}
+              {%- set from_ = caller.get('name') or caller.get('number') or '–' -%}
+              {%- if c.direction == 'inbound' -%}
+              {%- set r = namespace(l=[]) -%}{%- for x in c.get('ringingExtensions', []) %}{% set r.l = r.l + [ns.names.get(x, x)] %}{% endfor -%}
+              {%- set to = ns.names.get(c.get('answeredBy'), c.get('answeredBy')) if c.get('answeredBy') else r.l | join(', ') -%}
+              {%- else -%}
+              {%- set to = callee.get('name') or callee.get('number') -%}
+              {%- endif -%}
+              {%- set col = colors[c.direction] if ok else ('#db4437' if c.outcome == 'missed' else '#ef6c00') -%}
+              | <font color="{{ col }}"><ha-icon icon="{{ 'mdi:phone-missed' if c.outcome == 'missed' else icons[c.direction] }}"></ha-icon></font> | {{ as_timestamp(c.startedAt) | timestamp_custom('%Y-%m-%d %H:%M') }} | {{ from_ }} | {{ to or '–' }} | {{ c.get('line', {}).get('label', '–') }} | {{ ('%d:%02d' % (c.get('talkSec', 0) // 60, c.get('talkSec', 0) % 60)) if ok else result.get(c.outcome, c.outcome) }} |
+              {% endfor %}

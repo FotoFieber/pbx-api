@@ -37,7 +37,8 @@ The contract is [`openapi.yaml`](openapi.yaml); Swagger UI is served at `/docs`.
 Access: client IP allow list and static bearer tokens (see [Access control](#access-control)).
 Errors use RFC 9457 problem details.
 
-MQTT topics and Home Assistant entities: [docs/mqtt.md](docs/mqtt.md).
+MQTT topics: [docs/mqtt.md](docs/mqtt.md). Home Assistant entities, an example
+dashboard and automation: [docs/home-assistant.md](docs/home-assistant.md).
 
 ## Access control
 

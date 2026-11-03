@@ -33,3 +33,5 @@ With `mqtt.enabled`, entities are announced under `<discovery_prefix>` (default
 
 Entities of extensions or lines that disappear from the PBX configuration are
 removed automatically on the next discovery refresh.
+
+Entity IDs, an example dashboard and an example automation: [home-assistant.md](home-assistant.md).
