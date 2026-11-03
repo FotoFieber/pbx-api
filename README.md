@@ -151,7 +151,8 @@ commit that changes `src/`, `scripts/`, `.githooks/`, `pyproject.toml` or
 Test data is synthetic. The pre-commit hook rejects secrets and anything matching a
 personal denylist kept outside the repository (`~/.config/pbx-api/denylist`, one
 regex per line) – use it for your own IP ranges, numbers and names.
-[gitleaks](https://github.com/gitleaks/gitleaks) is used when installed.
+[gitleaks](https://github.com/gitleaks/gitleaks) is used when installed (8.16 from the
+Ubuntu archive or a current release).
 
 ## License
 

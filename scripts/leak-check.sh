@@ -48,10 +48,24 @@ if hits=$(printf '%s\n' "$text" | grep -nEi -e "$generic"); then
 fi
 
 if command -v gitleaks >/dev/null 2>&1; then
-  if [ "$mode" = "--staged" ]; then
-    gitleaks git --pre-commit --staged --redact --no-banner >/dev/null || fail=1
+  # gitleaks 8.19+ has "git"/"dir"; older releases (e.g. Ubuntu 24.04: 8.16) only
+  # "protect"/"detect"
+  if gitleaks dir --help >/dev/null 2>&1; then
+    staged_scan=(gitleaks git --pre-commit --staged)
+    tree_scan=(gitleaks dir)
   else
-    gitleaks dir . --redact --no-banner >/dev/null || fail=1
+    staged_scan=(gitleaks protect --staged)
+    tree_scan=(gitleaks detect --no-git --source)
+  fi
+  if [ "$mode" = "--staged" ]; then
+    "${staged_scan[@]}" --redact --no-banner >/dev/null || fail=1
+  else
+    # scan the tracked files at REV, not the working directory (which may differ
+    # and contains untracked files such as .venv)
+    snapshot=$(mktemp -d)
+    trap 'rm -rf "$snapshot"' EXIT
+    git archive "$rev" | tar -x -C "$snapshot"
+    "${tree_scan[@]}" "$snapshot" --redact --no-banner >/dev/null || fail=1
   fi
 else
   echo "leak-check: gitleaks not installed, skipped (recommended: https://github.com/gitleaks/gitleaks)" >&2
