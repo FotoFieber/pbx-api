@@ -7,7 +7,13 @@ server:
   bind: 0.0.0.0
   port: 8930
   tokens_file: /etc/pbx-api/tokens        # one bearer token per line
-  public_health: true
+  # Clients allowed to use the API (all endpoints, incl. /v1/health and /docs).
+  # Single IP addresses and CIDR subnets, IPv4 and IPv6, freely mixed.
+  # Loopback is always allowed; an empty list means no restriction.
+  allowed_clients:
+    - 192.0.2.10                           # a single host
+    - 198.51.100.0/24                      # a whole subnet
+    - 2001:db8::/32                        # an IPv6 subnet
 
 freepbx:
   db:

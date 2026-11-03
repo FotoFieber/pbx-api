@@ -29,6 +29,7 @@ _bearer = HTTPBearer(auto_error=False, description="Static bearer token configur
 
 NOT_FOUND = {404: {"model": Problem, "description": "Not found"}}
 UNAUTHORIZED = {401: {"model": Problem, "description": "Missing or invalid bearer token"}}
+FORBIDDEN = {403: {"model": Problem, "description": "Client IP not in server.allowed_clients"}}
 
 
 def get_service(request: Request) -> PbxService:
@@ -50,8 +51,8 @@ async def require_token(
 
 Service = Annotated[PbxService, Depends(get_service)]
 
-public = APIRouter(prefix="/v1")
-router = APIRouter(prefix="/v1", dependencies=[Depends(require_token)], responses=UNAUTHORIZED)
+public = APIRouter(prefix="/v1", responses=FORBIDDEN)
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_token)], responses={**UNAUTHORIZED, **FORBIDDEN})
 
 
 @public.get("/health", response_model=Health, tags=["system"], summary="Service health")

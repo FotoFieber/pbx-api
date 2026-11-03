@@ -25,6 +25,11 @@ from .service import PbxService
 log = logging.getLogger("pbx_api")
 
 
+def describe_access(config: Config) -> str:
+    clients = config.server.allowed_clients
+    return "allowed clients " + (", ".join(clients) + " + loopback" if clients else "unrestricted")
+
+
 class Runtime:
     def __init__(self, config_path: str, config: Config) -> None:
         self.config_path = config_path
@@ -39,6 +44,7 @@ class Runtime:
             self.service.live = self.ami
         self._refresh_task: asyncio.Task | None = None
         self._reload = asyncio.Event()
+        self.app: FastAPI | None = None
 
     async def on_live_change(self, changes: list[Change]) -> None:
         if self.mqtt:
@@ -46,12 +52,18 @@ class Runtime:
 
     async def refresh(self, reload_config: bool = False) -> None:
         if reload_config:
+            # an invalid file raises here and leaves the running configuration untouched
             fresh = load_config(self.config_path)
+            tokens = fresh.server.tokens()
             # only settings that are safe to change at runtime
             self.config.overrides = fresh.overrides
             self.config.discovery = fresh.discovery
             self.config.calls = fresh.calls
-            log.info("configuration overrides reloaded")
+            self.config.server.allowed_clients = fresh.server.allowed_clients
+            if self.app is not None:
+                self.app.state.tokens = tokens
+                self.app.state.allowed_clients = fresh.server.client_networks()
+            log.info("configuration reloaded (overrides, tokens, %s)", describe_access(fresh))
         await self.service.refresh_topology()
         if self.mqtt:
             await self.mqtt.publish_all()
@@ -70,7 +82,8 @@ class Runtime:
                 log.exception("topology refresh failed")
 
     @asynccontextmanager
-    async def lifespan(self, _app: FastAPI) -> AsyncIterator[None]:
+    async def lifespan(self, app: FastAPI) -> AsyncIterator[None]:
+        self.app = app
         await self.db.start()
         await self.service.refresh_topology()
         if self.ami:
@@ -100,7 +113,11 @@ def serve(config_path: str) -> int:
     tokens = config.server.tokens()
     if not tokens:
         log.warning("no bearer tokens configured: the API is unauthenticated")
-    app = create_app(runtime.service, tokens=tokens, lifespan=runtime.lifespan)
+    log.info("API access: %s", describe_access(config))
+    if not config.server.allowed_clients:
+        log.warning("server.allowed_clients is empty: any client IP may reach the API")
+    app = create_app(runtime.service, tokens=tokens, lifespan=runtime.lifespan,
+                     allowed_clients=config.server.client_networks())
     uvicorn.run(app, host=config.server.bind, port=config.server.port, log_config=None, access_log=False,
                 proxy_headers=False)
     return 0

@@ -11,6 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from . import __version__
+from .access import AllowListMiddleware, IPNetwork
 from .api import v1
 from .service import PbxService
 
@@ -18,7 +19,8 @@ DESCRIPTION = """
 Business-level access to a FreePBX/Asterisk phone system: calls as people
 experience them (not CDR legs), extensions, external lines and ring groups.
 
-All timestamps are RFC 3339 with offset. Authentication: static bearer token.
+All timestamps are RFC 3339 with offset. Access: optional client IP allow list
+(server.allowed_clients: addresses and CIDR subnets), then a static bearer token.
 """
 
 
@@ -33,6 +35,7 @@ def create_app(
     service: PbxService,
     tokens: list[str] | None = None,
     lifespan: Callable[[FastAPI], AbstractAsyncContextManager[None]] | None = None,
+    allowed_clients: list[IPNetwork] | None = None,
 ) -> FastAPI:
     @asynccontextmanager
     async def _noop(_: FastAPI) -> AsyncIterator[None]:
@@ -47,6 +50,8 @@ def create_app(
     )
     app.state.service = service
     app.state.tokens = tokens or []
+    app.state.allowed_clients = allowed_clients or []
+    app.add_middleware(AllowListMiddleware, state=app.state)
     app.include_router(v1.public)
     app.include_router(v1.router)
 

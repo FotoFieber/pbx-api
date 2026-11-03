@@ -34,9 +34,38 @@ and the phone book are discovered from FreePBX at start-up, periodically and on
 | `GET /v1/health` | Health (public) |
 
 The contract is [`openapi.yaml`](openapi.yaml); Swagger UI is served at `/docs`.
-Authentication: static bearer tokens. Errors use RFC 9457 problem details.
+Access: client IP allow list and static bearer tokens (see [Access control](#access-control)).
+Errors use RFC 9457 problem details.
 
 MQTT topics and Home Assistant entities: [docs/mqtt.md](docs/mqtt.md).
+
+## Access control
+
+Two independent checks protect the REST API:
+
+1. **Client IP allow list** – `server.allowed_clients` in `config.yaml`. Each entry is a
+   single IP address or a subnet in CIDR notation; IPv4 and IPv6 can be mixed:
+
+   ```yaml
+   server:
+     allowed_clients:
+       - 192.0.2.10          # one host
+       - 198.51.100.0/24     # a whole subnet
+       - 2001:db8::/32       # an IPv6 subnet
+   ```
+
+   Requests from other addresses get `403` on every endpoint, including
+   `/v1/health`, `/docs` and `/openapi.json`, before any token is looked at.
+   Loopback (`127.0.0.0/8`, `::1`) is always allowed. An empty list means no
+   restriction (a warning is logged). A subnet with host bits set (`192.0.2.10/24`)
+   is rejected as a likely typo. The client address is the TCP peer;
+   `X-Forwarded-For` is ignored.
+2. **Bearer token** – one of the tokens in `server.tokens_file`; required for all
+   endpoints except `/v1/health`.
+
+Both are re-read on `systemctl reload pbx-api` without a restart; an invalid
+configuration file is rejected and the running settings stay in place. A host
+firewall (e.g. the FreePBX firewall) can add a third layer in front.
 
 ## Requirements
 
@@ -47,7 +76,7 @@ MQTT topics and Home Assistant entities: [docs/mqtt.md](docs/mqtt.md).
 ## Installation
 
 pbx-api is not published on PyPI; it is installed from this Git repository. In the
-commands below, `<repo-url>` is the clone URL of this repository and `v0.1.1` a release
+commands below, `<repo-url>` is the clone URL of this repository and `v0.1.2` a release
 tag (see the tags / releases page of the repository).
 
 On the PBX host, as root:
@@ -57,9 +86,10 @@ apt install python3-venv git                 # git is preinstalled on FreePBX 17
 python3 -m venv /opt/pbx-api
 
 # pip clones the repository at the given tag and installs it into the virtualenv
-/opt/pbx-api/bin/pip install "git+<repo-url>@v0.1.1"
+/opt/pbx-api/bin/pip install "git+<repo-url>@v0.1.2"
 
-/opt/pbx-api/bin/pbx-api setup               # add --mqtt-host <broker> to enable MQTT
+/opt/pbx-api/bin/pbx-api setup --allow-from 192.0.2.10 --allow-from 198.51.100.0/24
+                                             # add --mqtt-host <broker> to enable MQTT
 /opt/pbx-api/bin/pbx-api check
 systemctl start pbx-api
 ```
@@ -68,7 +98,7 @@ Alternatively check out the source yourself, e.g. to review it first or without
 network access from the PBX host to the repository:
 
 ```sh
-git clone --branch v0.1.1 <repo-url> /usr/local/src/pbx-api
+git clone --branch v0.1.2 <repo-url> /usr/local/src/pbx-api
 /opt/pbx-api/bin/pip install /usr/local/src/pbx-api
 ```
 

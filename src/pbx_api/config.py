@@ -6,8 +6,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from .access import IPNetwork, parse_entry
 from .domain.topology import Overrides
 
 
@@ -21,7 +22,28 @@ class ServerConfig(BaseModel):
     bind: str = "127.0.0.1"
     port: int = 8930
     tokens_file: str | None = Field(default=None, description="One bearer token per line")
-    public_health: bool = True
+    allowed_clients: list[str] = Field(
+        default_factory=list,
+        description="IP addresses and/or CIDR subnets allowed to use the API; empty = no restriction",
+    )
+
+    @field_validator("allowed_clients", mode="before")
+    @classmethod
+    def _validate_clients(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = [value]
+        out = []
+        for entry in value:
+            try:
+                out.append(str(parse_entry(str(entry))))
+            except ValueError as exc:
+                raise ValueError(f"server.allowed_clients: invalid entry {entry!r}: {exc}") from None
+        return out
+
+    def client_networks(self) -> list[IPNetwork]:
+        return [parse_entry(e) for e in self.allowed_clients]
 
     def tokens(self) -> list[str]:
         if not self.tokens_file:

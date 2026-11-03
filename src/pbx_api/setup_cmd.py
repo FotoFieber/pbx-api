@@ -23,6 +23,7 @@ import sys
 from importlib import resources
 from pathlib import Path
 
+from .access import parse_entry
 from .adapters.freepbx_db import READ_TABLES
 
 AMI_READ = "system,call,reporting"
@@ -38,6 +39,8 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument("--user", default="pbx-api", help="system user running the service")
     p.add_argument("--bind", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8930)
+    p.add_argument("--allow-from", action="append", default=[], metavar="IP_OR_CIDR",
+                   help="client allowed to use the API (repeatable; only used when creating the config)")
     p.add_argument("--db-socket", default="/run/mysqld/mysqld.sock")
     p.add_argument("--db-user", default="pbx_api")
     p.add_argument("--config-database", default="asterisk")
@@ -109,6 +112,12 @@ class Setup:
             self.etc.chmod(0o750)
         self.secret("tokens", lambda: secrets.token_hex(24))
 
+    def allowed_clients(self) -> list[str]:
+        try:
+            return [str(parse_entry(e)) for e in self.a.allow_from]
+        except ValueError as exc:
+            raise SetupError(f"--allow-from: {exc}") from None
+
     def config_file(self) -> Path:
         path = self.etc / "config.yaml"
         if path.exists():
@@ -119,6 +128,7 @@ class Setup:
         values = {
             "@BIND@": self.a.bind,
             "@PORT@": str(self.a.port),
+            "@ALLOWED_CLIENTS@": "[" + ", ".join(f'"{n}"' for n in self.allowed_clients()) + "]",
             "@ETC@": str(self.etc),
             "@DB_SOCKET@": self.a.db_socket,
             "@DB_USER@": self.a.db_user,

@@ -7,6 +7,9 @@ server:
   bind: "@BIND@"
   port: @PORT@
   tokens_file: "@ETC@/tokens"
+  # Clients allowed to use the API: IP addresses and/or CIDR subnets (IPv4/IPv6).
+  # Loopback is always allowed. Empty list = no restriction.
+  allowed_clients: @ALLOWED_CLIENTS@
 
 freepbx:
   db:
